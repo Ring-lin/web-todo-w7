@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>W7 Todo V2.0（数据驱动 + 筛选 + 持久化）</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; color: #000; max-width: 560px; margin: 24px auto; padding: 0 16px; }
+  h2 { font-size: 18px; color: #000; }
+  .note { background: #f3f3f3; border: 1px solid #000; padding: 10px 12px; font-size: 13px; line-height: 1.7; color: #000; }
+  code { background: #ececec; padding: 1px 5px; color: #000; }
+  #task { width: 280px; padding: 6px 8px; border: 1px solid #000; color: #000; font-size: 14px; }
+  button { padding: 6px 12px; border: 1px solid #000; background: #fff; color: #000; font-size: 13px; cursor: pointer; margin: 2px; }
+  .filters button.active { background: #000; color: #fff; }
+  #list { list-style: none; padding: 0; margin-top: 12px; }
+  #list li { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid #ddd; color: #000; }
+  #list li.done span { text-decoration: line-through; color: #666; }
+  #list .del { margin-left: auto; }
+</style>
+</head>
+<body>
+  <h2>Todo 列表 · V2.0（数据驱动）</h2>
+  <p class="note">
+    这是实验七 V2.0 定稿演示页：添加用 <code>[...todos, new]</code>、删除用 <code>filter</code>、切换用 <code>map+展开</code>，
+    三个操作都 <code>save()+render()</code>；筛选切 <code>filter</code> 视图；刷新后由 <code>load()</code> 从 localStorage 恢复。
+    可在控制台调用 <code>addTodo('买菜')</code> / <code>clearCompleted()</code> 验证 5 问。
+  </p>
+
+  <input id="task" placeholder="例如：买菜">
+  <button id="add">添加</button>
+  <div class="filters">
+    <button data-f="all" class="active">全部</button>
+    <button data-f="active">进行中</button>
+    <button data-f="completed">已完成</button>
+    <button id="clear">清除已完成</button>
+  </div>
+  <ul id="list"></ul>
+
+<script>
+  let todos = [];
+  let filter = 'all';
+  const KEY = 'todos-v2';
+
+  function load() {
+    try { const raw = localStorage.getItem(KEY); todos = raw ? JSON.parse(raw) : []; }
+    catch (e) { todos = []; }
+  }
+  function save() { localStorage.setItem(KEY, JSON.stringify(todos)); }
+
+  function addTodo(text) {
+    const t = text.trim();
+    if (!t) return;
+    todos = [...todos, { id: Date.now(), text: t, done: false }]; // 不可变展开
+    save(); render();
+  }
+  function removeTodo(id) {
+    todos = todos.filter(x => x.id !== id); // filter 不改原数组
+    save(); render();
+  }
+  function toggleTodo(id) {
+    todos = todos.map(x => x.id === id ? { ...x, done: !x.done } : x); // map + 展开
+    save(); render();
+  }
+  function clearCompleted() {
+    todos = todos.filter(x => !x.done);
+    save(); render();
+  }
+  function setFilter(f) { filter = f; render(); }
+
+  function visibleTodos() {
+    if (filter === 'active') return todos.filter(x => !x.done);
+    if (filter === 'completed') return todos.filter(x => x.done);
+    return todos;
+  }
+
+  function render() {
+    const list = document.getElementById('list');
+    list.innerHTML = '';
+    for (const t of visibleTodos()) {
+      const li = document.createElement('li');
+      if (t.done) li.className = 'done';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox'; cb.checked = t.done;
+      cb.onchange = () => toggleTodo(t.id);
+      const span = document.createElement('span');
+      span.textContent = t.text;
+      const del = document.createElement('button');
+      del.className = 'del'; del.textContent = '删除';
+      del.onclick = () => removeTodo(t.id);
+      li.append(cb, span, del);
+      list.appendChild(li);
+    }
+  }
+
+  document.getElementById('add').onclick = () => {
+    const inp = document.getElementById('task');
+    addTodo(inp.value); inp.value = '';
+  };
+  document.querySelectorAll('.filters button[data-f]').forEach(b => {
+    b.onclick = () => {
+      setFilter(b.dataset.f);
+      document.querySelectorAll('.filters button[data-f]').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+    };
+  });
+  document.getElementById('clear').onclick = clearCompleted;
+
+  load();
+  render();
+</script>
+</body>
+</html>
